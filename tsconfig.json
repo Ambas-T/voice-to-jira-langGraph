@@ -41,6 +41,6 @@
     "moduleDetection": "force",
     "skipLibCheck": true,
   },
-  "include": ["*.ts", "server/**/*.ts"],
+  "include": ["*.ts", "server/**/*.ts", "langgraph/**/*.ts"],
   "exclude": ["node_modules", "client"]
 }

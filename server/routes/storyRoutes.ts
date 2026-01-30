@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response } from "express";
-import { generateStory, createJiraStory } from "../../jira-service.js";
+import { generateStory, createJiraStory } from "../../langgraph/index.js";
 
 const router = Router();
 

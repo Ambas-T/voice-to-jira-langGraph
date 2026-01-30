@@ -10,7 +10,7 @@ Voice-to-Jira combines **speech-to-text**, **LLM-powered story generation**, and
 
 - **Voice interface** — React app with Deepgram STT/TTS: speak your idea, get a spoken prompt and feedback.
 - **LangGraph workflow** — CLI agent (`jira-agent`) implements a state graph: *Generate → Format → Human approval → Create Jira*, with checkpointing and conditional edges.
-- **Shared story engine** — `jira-service` provides the LLM story-generation logic used by both the voice API and the LangGraph agent for consistency.
+- **Shared story engine** — `langgraph/` (state + graph + services) provides the LLM story-generation and Jira creation used by both the voice API and the LangGraph agent for consistency.
 - **Human-in-the-loop** — Approve or reject the generated story before it is created in Jira (in the UI or at the CLI).
 
 ---
@@ -25,7 +25,7 @@ Voice-to-Jira combines **speech-to-text**, **LLM-powered story generation**, and
 │   [React Client]  ──►  [Express API]  ──►  Deepgram (STT/TTS)                │
 │        │                      │                                              │
 │        │                      ▼                                              │
-│        │               jira-service  ◄──  Same story logic as jira-agent     │
+│        │               langgraph/services  ◄──  Same story logic as jira-agent │
 │        │               (generate-story, create-jira)                         │
 │        │                      │                                              │
 │        └──────────────────────┼──────────────────────────────────────────────┤
@@ -45,8 +45,8 @@ Voice-to-Jira combines **speech-to-text**, **LLM-powered story generation**, and
 ```
 
 - **Client:** React (Vite), voice recording, story preview, approve/reject.
-- **Server:** Express, Deepgram integration, `/api` routes that call `jira-service`.
-- **jira-service:** Shared module for LLM story generation and Jira issue creation (used by API and by the LangGraph agent’s generate/create nodes).
+- **Server:** Express, Deepgram integration, `/api` routes that call `langgraph` (generateStory, createJiraStory).
+- **langgraph/:** State (schema, reducers), graph (nodes + workflow), and services (story-generation, jira-client) (used by API and by the LangGraph agent’s generate/create nodes).
 - **jira-agent:** LangGraph `StateGraph` with nodes for generation, formatting, human approval, and Jira creation; uses `MemorySaver` for checkpointing.
 
 ---
@@ -128,7 +128,7 @@ npm run jira-agent -- "As a user I want to filter search by date"
 
 1. Open the client (e.g. http://localhost:5173) and start **Create Jira story**. The app plays a short prompt via Deepgram TTS (e.g. *“What Jira story do you want to build?”*).
 2. Speak your idea while the voice wave is active; stop recording when done.
-3. The server transcribes the audio (Deepgram STT), sends the transcript to `jira-service` for story generation, and returns title, description, and acceptance criteria.
+3. The server transcribes the audio (Deepgram STT), sends the transcript to `langgraph` for story generation, and returns title, description, and acceptance criteria.
 4. Review the story in the right-hand panel. Choose **Approve** to create it in Jira or **Reject** to discard.
 5. On approve, the server calls the Jira API and displays the new issue key and link.
 
@@ -157,8 +157,16 @@ npm run jira-agent -- "As a user I want to filter search by date"
 │   ├── routes/             # voiceRoutes, storyRoutes
 │   ├── services/           # deepgram
 │   └── app.ts, index.ts
-├── jira-agent.ts           # LangGraph StateGraph (CLI, human-in-the-loop)
-├── jira-service.ts         # Shared story generation + Jira creation
+├── langgraph/              # LangGraph Jira workflow (two core components)
+│   ├── state.ts            # State schema, channel reducers, domain types
+│   ├── nodes.ts            # Graph nodes (generate, format, approval, create_jira)
+│   ├── graph.ts            # StateGraph definition, edges, compile
+│   ├── services/           # Shared by nodes and API
+│   │   ├── story-generation.ts  # LLM story generation
+│   │   ├── jira-client.ts       # Jira REST (create issue, issue types)
+│   │   └── index.ts
+│   └── index.ts            # Public API (createJiraGraph, generateStory, createJiraStory)
+├── jira-agent.ts           # CLI entry: invokes langgraph createJiraGraph
 ├── email-sender-agent.ts   # ReAct-style email agent (optional)
 ├── agent.ts                # Email-sender agent (ReAct, LangGraph prebuilt)
 ├── index.ts                # Optional entry
