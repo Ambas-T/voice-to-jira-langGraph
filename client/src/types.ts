@@ -19,6 +19,8 @@ export interface JiraOptionalFields {
   dueDate?: string;
   startDate?: string;
   labels?: string[];
+  /** When true, generate and create subtasks linked to the parent story */
+  createSubtasks?: boolean;
 }
 
 export interface JiraResult {
@@ -44,3 +46,8 @@ export type CreateJiraResultPayload = Pick<
   JiraResult,
   "jiraKey" | "jiraUrl" | "parentKey" | "parentUrl"
 >;
+
+export interface CreatedSubtaskIssue {
+  jiraKey: string;
+  jiraUrl: string;
+}

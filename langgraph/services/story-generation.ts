@@ -6,7 +6,7 @@ import * as dotenv from "dotenv";
 dotenv.config();
 
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import type { GeneratedStory } from "../state.js";
+import type { GeneratedStory, SubtaskItem } from "../state.js";
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 if (!GOOGLE_API_KEY) throw new Error("Missing GOOGLE_API_KEY");
@@ -29,7 +29,7 @@ Create a well-structured Jira story with:
    - Focus on the user value or feature
    - Example: "As a user, I want to filter search results by date"
 
-2. **Description**: A detailed description (2-4 paragraphs) that includes:
+2. **Description**: A detailed description (1 - 3 paragraphs) that includes:
    - User story format: "As a [user type], I want [goal] so that [benefit]"
    - Context and background
    - Technical considerations (if relevant)
@@ -78,6 +78,66 @@ export async function generateStory(
           : [parsed.acceptanceCriteria ?? "Story is complete"].filter(Boolean),
       },
     };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+const SUBTASKS_PROMPT = `You are a Product Manager splitting a parent story into subtasks.
+
+Parent story:
+Title: {{title}}
+Description: {{description}}
+Acceptance criteria: {{acceptanceCriteria}}
+
+Decide how many subtasks this story needs: 3, 4, or 5. Generate exactly that many subtasks.
+Each subtask must be a concrete, shippable piece of work with its own title, short description, and 1–3 acceptance criteria.
+
+Respond with ONLY a JSON array (no markdown, no explanation):
+[
+  { "title": "Subtask 1 title", "description": "Short description", "acceptanceCriteria": ["Criterion 1", "Criterion 2"] },
+  { "title": "Subtask 2 title", "description": "Short description", "acceptanceCriteria": ["Criterion 1"] }
+]
+
+Use 3, 4, or 5 items. Each item: title (string), description (string), acceptanceCriteria (string array).`;
+
+export async function generateSubtasks(
+  parentStory: { title: string; description: string; acceptanceCriteria: string[] }
+): Promise<{ ok: true; subtasks: SubtaskItem[] } | { ok: false; error: string }> {
+  const prompt = SUBTASKS_PROMPT.replace("{{title}}", parentStory.title)
+    .replace("{{description}}", parentStory.description)
+    .replace(
+      "{{acceptanceCriteria}}",
+      parentStory.acceptanceCriteria.join("; ")
+    );
+  try {
+    const response = await llm.invoke(prompt);
+    const content = response.content as string;
+    const jsonMatch = content.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) {
+      return { ok: false, error: "Failed to parse LLM response as JSON array" };
+    }
+    const parsed = JSON.parse(jsonMatch[0]) as Array<{
+      title?: string;
+      description?: string;
+      acceptanceCriteria?: string[] | string;
+    }>;
+    const subtasks: SubtaskItem[] = parsed
+      .slice(0, 5)
+      .map((item) => ({
+        title: item.title ?? "Subtask",
+        description: item.description ?? "",
+        acceptanceCriteria: Array.isArray(item.acceptanceCriteria)
+          ? item.acceptanceCriteria
+          : [item.acceptanceCriteria ?? "Done"].filter(Boolean),
+      }));
+    if (subtasks.length < 3) {
+      return { ok: false, error: "Expected at least 3 subtasks" };
+    }
+    return { ok: true, subtasks };
   } catch (err) {
     return {
       ok: false,

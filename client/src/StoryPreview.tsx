@@ -1,21 +1,34 @@
 import { useState } from "react";
-import type { GeneratedStory, JiraResult, Status, JiraOptionalFields } from "./types";
+import type { GeneratedStory, JiraResult, Status, JiraOptionalFields, CreatedSubtaskIssue } from "./types";
 import "./StoryPreview.css";
 
 interface StoryPreviewProps {
   story: GeneratedStory | null;
   status: Status;
   jiraResult: JiraResult | null;
+  subtaskIssues: CreatedSubtaskIssue[] | null;
+  creatingSubtasks: boolean;
+  subtaskError?: string;
   onApprove: (optionalFields: JiraOptionalFields) => void;
   onReject: () => void;
 }
 
-export function StoryPreview({ story, status, jiraResult, onApprove, onReject }: StoryPreviewProps) {
+export function StoryPreview({
+  story,
+  status,
+  jiraResult,
+  subtaskIssues,
+  creatingSubtasks,
+  subtaskError,
+  onApprove,
+  onReject,
+}: StoryPreviewProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [parentKey, setParentKey] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [startDate, setStartDate] = useState("");
   const [labelsInput, setLabelsInput] = useState("");
+  const [createSubtasksChecked, setCreateSubtasksChecked] = useState(false);
 
   const handleApprove = () => {
     const optionalFields: JiraOptionalFields = {};
@@ -24,6 +37,9 @@ export function StoryPreview({ story, status, jiraResult, onApprove, onReject }:
     if (startDate) optionalFields.startDate = startDate;
     if (labelsInput.trim()) {
       optionalFields.labels = labelsInput.split(",").map((l) => l.trim()).filter(Boolean);
+    }
+    if (createSubtasksChecked) {
+      optionalFields.createSubtasks = true;
     }
     onApprove(optionalFields);
   };
@@ -41,6 +57,21 @@ export function StoryPreview({ story, status, jiraResult, onApprove, onReject }:
             Parent: {jiraResult.parentKey} →
           </a>
         )}
+        {subtaskIssues && subtaskIssues.length > 0 && (
+          <div className="subtasks-created">
+            <h3 className="subtasks-title">Subtasks ({subtaskIssues.length})</h3>
+            <ul className="subtasks-list">
+              {subtaskIssues.map((issue) => (
+                <li key={issue.jiraKey}>
+                  <a href={issue.jiraUrl} target="_blank" rel="noopener noreferrer" className="jira-link">
+                    {issue.jiraKey} →
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {subtaskError && <p className="subtask-error">{subtaskError}</p>}
       </div>
     );
   }
@@ -127,14 +158,28 @@ export function StoryPreview({ story, status, jiraResult, onApprove, onReject }:
         </div>
       )}
 
+      {subtaskError && <p className="subtask-error">{subtaskError}</p>}
+
+      <div className="subtasks-checkbox-row">
+        <label className="checkbox-label">
+          <input
+            type="checkbox"
+            checked={createSubtasksChecked}
+            onChange={(e) => setCreateSubtasksChecked(e.target.checked)}
+            disabled={creating || creatingSubtasks}
+          />
+          <span>Create subtasks (LLM generates 3–5 child issues)</span>
+        </label>
+      </div>
+
       <div className="actions">
         <button
           type="button"
           className="btn-approve"
           onClick={handleApprove}
-          disabled={creating}
+          disabled={creating || creatingSubtasks}
         >
-          {creating ? "Creating…" : "Approve"}
+          {creatingSubtasks ? "Creating subtasks…" : creating ? "Creating…" : "Approve"}
         </button>
         <button
           type="button"

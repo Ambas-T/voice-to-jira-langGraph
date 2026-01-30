@@ -199,3 +199,124 @@
   font-size: 0.75rem;
   color: #52525b;
 }
+
+/* Subtasks (Create subtasks → Pregel runs create_jira × N) */
+.subtasks-section {
+  margin-bottom: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.subtasks-action {
+  margin-top: 0.5rem;
+}
+
+.btn-subtasks {
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid #3f3f46;
+  background: #27272a;
+  color: #e4e4e7;
+}
+
+.btn-subtasks:hover:not(:disabled) {
+  background: #3f3f46;
+  border-color: #52525b;
+}
+
+.btn-subtasks.secondary {
+  background: transparent;
+}
+
+.btn-subtasks:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.subtasks-created {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #27272a;
+}
+
+.subtasks-created.inline {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.subtasks-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.9rem;
+  color: #a1a1aa;
+  font-weight: 600;
+}
+
+.subtasks-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.subtasks-list.inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 0.75rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.subtasks-list li {
+  margin-bottom: 0.25rem;
+}
+
+.subtasks-list.inline li {
+  margin-bottom: 0;
+}
+
+.subtasks-label {
+  font-size: 0.85rem;
+  color: #71717a;
+  margin-right: 0.5rem;
+}
+
+.subtask-error {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.85rem;
+  color: #f87171;
+}
+
+/* Checkbox for Create subtasks */
+.subtasks-checkbox-row {
+  margin-bottom: 1rem;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #d4d4d8;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #3b82f6;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.checkbox-label span {
+  user-select: none;
+}

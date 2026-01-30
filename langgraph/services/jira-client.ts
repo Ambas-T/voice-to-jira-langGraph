@@ -23,7 +23,11 @@ function authHeader(): string {
   return `Basic ${Buffer.from(`${JIRA_EMAIL}:${JIRA_API_TOKEN}`).toString("base64")}`;
 }
 
-export async function getIssueTypeId(): Promise<string> {
+/** Get issue types for the project (cached for performance). */
+let cachedIssueTypes: Array<{ name: string; id: string; subtask?: boolean }> | null = null;
+
+async function fetchIssueTypes(): Promise<Array<{ name: string; id: string; subtask?: boolean }>> {
+  if (cachedIssueTypes) return cachedIssueTypes;
   try {
     const response = await fetch(
       `${JIRA_BASE_URL}/rest/api/3/project/${JIRA_PROJECT_KEY}`,
@@ -36,29 +40,50 @@ export async function getIssueTypeId(): Promise<string> {
         },
       }
     );
-    if (!response.ok) return "10001";
+    if (!response.ok) return [];
     const project = (await response.json()) as {
       issueTypes?: Array<{ name: string; id: string; subtask?: boolean }>;
     };
-    if (!project.issueTypes) return "10001";
-    const nonSubtask = project.issueTypes.filter(
-      (it) => !it.subtask && !it.name.toLowerCase().includes("sub")
-    );
-    const storyType = nonSubtask.find((it) => it.name.toLowerCase() === "story");
-    if (storyType) return storyType.id;
-    const taskType = nonSubtask.find((it) => it.name.toLowerCase() === "task");
-    if (taskType) return taskType.id;
-    const storyOrTask = nonSubtask.find(
-      (it) =>
-        it.name.toLowerCase().includes("story") ||
-        it.name.toLowerCase().includes("task")
-    );
-    if (storyOrTask) return storyOrTask.id;
-    const first = nonSubtask[0];
-    return first?.id ?? "10001";
+    cachedIssueTypes = project.issueTypes ?? [];
+    return cachedIssueTypes;
   } catch {
-    return "10001";
+    return [];
   }
+}
+
+export async function getIssueTypeId(): Promise<string> {
+  const issueTypes = await fetchIssueTypes();
+  if (!issueTypes.length) return "10001";
+  const nonSubtask = issueTypes.filter(
+    (it) => !it.subtask && !it.name.toLowerCase().includes("sub")
+  );
+  const storyType = nonSubtask.find((it) => it.name.toLowerCase() === "story");
+  if (storyType) return storyType.id;
+  const taskType = nonSubtask.find((it) => it.name.toLowerCase() === "task");
+  if (taskType) return taskType.id;
+  const storyOrTask = nonSubtask.find(
+    (it) =>
+      it.name.toLowerCase().includes("story") ||
+      it.name.toLowerCase().includes("task")
+  );
+  if (storyOrTask) return storyOrTask.id;
+  const first = nonSubtask[0];
+  return first?.id ?? "10001";
+}
+
+/** Get the Sub-task issue type ID for creating subtasks linked to a parent. */
+export async function getSubtaskIssueTypeId(): Promise<string> {
+  const issueTypes = await fetchIssueTypes();
+  if (!issueTypes.length) return "10003"; // common default for subtask
+  // Find a subtask type
+  const subtaskType = issueTypes.find(
+    (it) => it.subtask === true || it.name.toLowerCase() === "sub-task" || it.name.toLowerCase() === "subtask"
+  );
+  if (subtaskType) return subtaskType.id;
+  // Fallback: look for anything with "sub" in the name
+  const subLike = issueTypes.find((it) => it.name.toLowerCase().includes("sub"));
+  if (subLike) return subLike.id;
+  return "10003";
 }
 
 export async function createJiraStory(
@@ -69,10 +94,15 @@ export async function createJiraStory(
     return { ok: false, error: "Missing story content" };
   }
   try {
-    const issueTypeId = await getIssueTypeId();
-    const descriptionParagraphs = description.split("\n\n").filter((p) => p.trim());
+    // Use subtask issue type if parentKey is provided, otherwise use story/task type
+    const isSubtask = Boolean(optionalFields?.parentKey);
+    const issueTypeId = isSubtask
+      ? await getSubtaskIssueTypeId()
+      : await getIssueTypeId();
+
+    const descriptionParagraphs = description.split("\n\n").filter((p: string) => p.trim());
     const descriptionContent: Array<Record<string, unknown>> = [];
-    descriptionParagraphs.forEach((para) => {
+    descriptionParagraphs.forEach((para: string) => {
       descriptionContent.push({
         type: "paragraph",
         content: [{ type: "text", text: para.trim() }],
@@ -88,7 +118,7 @@ export async function createJiraStory(
         },
       ],
     });
-    acceptanceCriteria.forEach((criteria) => {
+    acceptanceCriteria.forEach((criteria: string) => {
       descriptionContent.push({
         type: "paragraph",
         content: [{ type: "text", text: `☐ ${criteria}` }],

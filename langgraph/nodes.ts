@@ -3,17 +3,12 @@
  * Each node receives full state and returns a partial state update.
  */
 import type { JiraAgentState } from "./state.js";
-import { generateStory } from "./services/story-generation.js";
+import { generateStory, generateSubtasks } from "./services/story-generation.js";
 import { createJiraStory } from "./services/jira-client.js";
-
-const JIRA_DOMAIN = process.env.JIRA_DOMAIN ?? "";
-const JIRA_PROJECT_KEY = process.env.JIRA_PROJECT_KEY ?? "PROJ";
 
 export async function generateStoryNode(
   state: JiraAgentState
 ): Promise<Partial<JiraAgentState>> {
-  console.log(`\n🤖 [Node: Generate Story] Processing topic: "${state.topic}"...`);
-
   const result = await generateStory(state.topic);
   if (!result.ok) {
     return {
@@ -33,93 +28,86 @@ export async function generateStoryNode(
 export async function formatPreviewNode(
   state: JiraAgentState
 ): Promise<Partial<JiraAgentState>> {
-  console.log("\n📋 [Node: Format Preview] Formatting story for review...");
-
   if (!state.title || !state.description || !state.acceptanceCriteria) {
     return { error: "Missing story content to format" };
   }
-
-  const preview = `
-╔═══════════════════════════════════════════════════════════╗
-║                    JIRA STORY PREVIEW                      ║
-╚═══════════════════════════════════════════════════════════╝
-
-📌 TITLE:
-${state.title}
-
-📄 DESCRIPTION:
-${state.description}
-
-✅ ACCEPTANCE CRITERIA:
-${state.acceptanceCriteria.map((c, i) => `   ${i + 1}. ${c}`).join("\n")}
-
-╔═══════════════════════════════════════════════════════════╗
-║  This story will be created in:                           ║
-║  Project: ${JIRA_PROJECT_KEY.padEnd(47)} ║
-║  Domain: ${JIRA_DOMAIN}.atlassian.net${" ".repeat(27)} ║
-╚═══════════════════════════════════════════════════════════╝
-`;
-
   return {
-    formattedPreview: preview,
     humanApproval: "pending",
-    messages: [{ role: "system", content: "Story formatted and ready for approval" }],
+    messages: [{ role: "system", content: "Story ready for approval" }],
+  };
+}
+
+/** Populates state.subtasks (3–5 items); graph then fans out via Send(create_jira) × N. */
+export async function generateSubtasksNode(
+  state: JiraAgentState
+): Promise<Partial<JiraAgentState>> {
+  if (!state.title || !state.description || !state.acceptanceCriteria) {
+    return { error: "Missing story content to generate subtasks" };
+  }
+  const result = await generateSubtasks({
+    title: state.title,
+    description: state.description,
+    acceptanceCriteria: state.acceptanceCriteria,
+  });
+  if (!result.ok) {
+    return {
+      error: result.error,
+      messages: [{ role: "error", content: result.error }],
+    };
+  }
+  return {
+    subtasks: result.subtasks,
+    messages: [
+      {
+        role: "system",
+        content: `Generated ${result.subtasks.length} subtasks`,
+      },
+    ],
   };
 }
 
 export async function humanApprovalNode(
   state: JiraAgentState
 ): Promise<Partial<JiraAgentState>> {
-  console.log("\n👤 [Node: Human Approval] Waiting for your decision...");
-  console.log(state.formattedPreview);
-
   const readline = await import("node:readline");
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
   const answer = await new Promise<string>((resolve) => {
-    rl.question(
-      "\n❓ Approve this story? (yes/y to approve, no/n to reject, edit/e to modify): ",
-      (input) => {
-        rl.close();
-        resolve(input.trim().toLowerCase());
-      }
-    );
+    rl.question("Approve this story? (y/n): ", (input) => {
+      rl.close();
+      resolve(input.trim().toLowerCase());
+    });
   });
 
   if (answer === "yes" || answer === "y") {
-    console.log("✅ Approval granted! Proceeding to create Jira story...");
     return {
       humanApproval: "approved",
       messages: [{ role: "human", content: "Approved" }],
     };
   }
-  if (answer === "no" || answer === "n") {
-    console.log("❌ Approval rejected. Story will not be created.");
-    return {
-      humanApproval: "rejected",
-      messages: [{ role: "human", content: "Rejected" }],
-    };
-  }
-  console.log("⚠️  Unrecognized response. Treating as rejection.");
   return {
     humanApproval: "rejected",
-    messages: [{ role: "human", content: `Unrecognized: ${answer}` }],
+    messages: [{ role: "human", content: "Rejected" }],
   };
 }
 
 export async function createJiraNode(
   state: JiraAgentState
 ): Promise<Partial<JiraAgentState>> {
-  console.log("\n📝 [Node: Create Jira] Creating story in Jira...");
-
   if (!state.title || !state.description || !state.acceptanceCriteria) {
     return { error: "Missing story content" };
   }
+
+  // If parentKey is set, this is a subtask creation (child of parent story)
+  const optionalFields = state.parentKey
+    ? { parentKey: state.parentKey }
+    : undefined;
 
   const result = await createJiraStory({
     title: state.title,
     description: state.description,
     acceptanceCriteria: state.acceptanceCriteria,
+    optionalFields,
   });
 
   if (!result.ok) {
@@ -129,12 +117,16 @@ export async function createJiraNode(
     };
   }
 
-  console.log(`\n✅ Story created: ${result.result.jiraKey}`);
-  return {
+  const issue = {
     jiraKey: result.result.jiraKey,
     jiraUrl: result.result.jiraUrl,
+  };
+  return {
+    jiraKey: issue.jiraKey,
+    jiraUrl: issue.jiraUrl,
+    createdSubtaskIssues: [issue],
     messages: [
-      { role: "system", content: `Jira story created: ${result.result.jiraKey}` },
+      { role: "system", content: `Jira ${state.parentKey ? "subtask" : "story"} created: ${issue.jiraKey}` },
     ],
   };
 }

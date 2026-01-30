@@ -9,18 +9,22 @@ import type {
   JiraResult,
   HistoryEntry,
   CreateJiraResultPayload,
+  CreatedSubtaskIssue,
 } from "./types";
 import "./App.css";
 
 const API = ""; // same origin via Vite proxy
 
-export type { Status, GeneratedStory, JiraOptionalFields, JiraResult, HistoryEntry };
+export type { Status, GeneratedStory, JiraOptionalFields, JiraResult, HistoryEntry, CreatedSubtaskIssue };
 
 export default function App() {
   const [status, setStatus] = useState<Status>("idle");
   const [story, setStory] = useState<GeneratedStory | null>(null);
   const [transcript, setTranscript] = useState("");
   const [jiraResult, setJiraResult] = useState<JiraResult | null>(null);
+  const [subtaskIssues, setSubtaskIssues] = useState<CreatedSubtaskIssue[] | null>(null);
+  const [creatingSubtasks, setCreatingSubtasks] = useState(false);
+  const [subtaskError, setSubtaskError] = useState("");
   const [error, setError] = useState("");
   const [history, setHistory] = useState<HistoryEntry[]>([]);
 
@@ -67,8 +71,10 @@ export default function App() {
     setTranscript("");
     setStory(null);
     setJiraResult(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+setSubtaskIssues(null);
+      setSubtaskError("");
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       chunksRef.current = [];
       recorder.ondataavailable = (e) => {
@@ -163,12 +169,17 @@ export default function App() {
     async (fields: JiraOptionalFields) => {
       if (!story) return;
       setError("");
+      setSubtaskError("");
       setStatus("creating");
+      setSubtaskIssues(null);
+
       try {
+        // 1. Create the parent story first
+        const { createSubtasks, ...restFields } = fields;
         const res = await fetch(`${API}/api/create-jira`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...story, optionalFields: fields }),
+          body: JSON.stringify({ ...story, optionalFields: restFields }),
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -177,6 +188,35 @@ export default function App() {
         const result = await res.json();
         setJiraResult(result);
         addToHistory(story.title, "approved", result);
+
+        // 2. If createSubtasks is checked, generate and create subtasks linked to parent
+        if (createSubtasks && result.jiraKey) {
+          setCreatingSubtasks(true);
+          try {
+            const subtaskRes = await fetch(`${API}/api/create-subtasks`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                title: story.title,
+                description: story.description,
+                acceptanceCriteria: story.acceptanceCriteria,
+                parentKey: result.jiraKey,
+              }),
+            });
+            const subtaskData = await subtaskRes.json().catch(() => ({}));
+            if (!subtaskRes.ok) {
+              setSubtaskError(subtaskData.error || "Failed to create subtasks");
+            } else {
+              const issues = subtaskData.createdSubtaskIssues ?? [];
+              setSubtaskIssues(Array.isArray(issues) ? issues : []);
+            }
+          } catch (err) {
+            setSubtaskError(err instanceof Error ? err.message : "Create subtasks failed");
+          } finally {
+            setCreatingSubtasks(false);
+          }
+        }
+
         setStatus("done");
       } catch (err) {
         setError(err instanceof Error ? err.message : "Create failed");
@@ -197,6 +237,8 @@ export default function App() {
   const handleCreateAnother = useCallback(() => {
     setStory(null);
     setJiraResult(null);
+    setSubtaskIssues(null);
+    setSubtaskError("");
     setTranscript("");
     setError("");
     reset();
@@ -228,6 +270,9 @@ export default function App() {
             story={story}
             status={status}
             jiraResult={jiraResult}
+            subtaskIssues={subtaskIssues}
+            creatingSubtasks={creatingSubtasks}
+            subtaskError={subtaskError}
             onApprove={handleApprove}
             onReject={handleReject}
           />
