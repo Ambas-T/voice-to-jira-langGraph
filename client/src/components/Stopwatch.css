@@ -1,0 +1,20 @@
+.stopwatch {
+  margin-top: 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: #27272a;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+}
+
+.stopwatch-icon {
+  font-size: 1.2rem;
+}
+
+.stopwatch-time {
+  font-family: monospace;
+  font-size: 1.25rem;
+  color: #22c55e;
+  font-weight: 600;
+}

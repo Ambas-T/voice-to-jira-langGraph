@@ -1,0 +1,201 @@
+.preview-card {
+  background: #18181b;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  padding: 1.5rem;
+  min-height: 200px;
+}
+
+.preview-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  color: #a1a1aa;
+  font-weight: 600;
+}
+
+.story-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+  color: #f4f4f5;
+  line-height: 1.4;
+}
+
+.story-description {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: #d4d4d8;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.criteria {
+  margin-bottom: 1.25rem;
+  font-size: 0.9rem;
+  color: #d4d4d8;
+}
+
+.criteria strong {
+  color: #e4e4e7;
+}
+
+.criteria ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.25rem;
+}
+
+.criteria li {
+  margin-bottom: 0.25rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn-approve,
+.btn-reject {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-approve {
+  background: #22c55e;
+  color: #fff;
+}
+
+.btn-approve:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.btn-reject {
+  background: transparent;
+  color: #a1a1aa;
+  border: 1px solid #3f3f46;
+}
+
+.btn-reject:hover:not(:disabled) {
+  background: #27272a;
+  color: #e4e4e7;
+}
+
+.btn-approve:disabled,
+.btn-reject:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.empty-card,
+.success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.placeholder {
+  margin: 0;
+  color: #71717a;
+  font-size: 0.95rem;
+}
+
+.success-card .preview-title {
+  color: #22c55e;
+}
+
+.jira-key {
+  margin: 0.25rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #f4f4f5;
+}
+
+.jira-link {
+  margin-top: 0.5rem;
+  color: #3b82f6;
+  text-decoration: none;
+}
+
+.jira-link:hover {
+  text-decoration: underline;
+}
+
+.success-card .parent-link {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.9rem;
+  color: #71717a;
+}
+
+.success-card .parent-link:hover {
+  color: #3b82f6;
+}
+
+/* Advanced Options */
+.advanced-toggle {
+  margin-bottom: 1rem;
+}
+
+.toggle-btn {
+  background: none;
+  border: none;
+  color: #71717a;
+  font-size: 0.85rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.toggle-btn:hover {
+  color: #a1a1aa;
+}
+
+.advanced-fields {
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  background: #09090b;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field-row label {
+  font-size: 0.8rem;
+  color: #71717a;
+  font-weight: 500;
+}
+
+.field-row input {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  color: #e4e4e7;
+}
+
+.field-row input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.field-row input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field-hint {
+  font-size: 0.75rem;
+  color: #52525b;
+}

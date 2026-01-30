@@ -1,0 +1,28 @@
+.app {
+  min-height: 100vh;
+  padding: 1.5rem;
+}
+
+.app__layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 800px) {
+  .app__layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.app__voice-section {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.app__preview-section {
+  /* Preview takes remaining column */
+}
